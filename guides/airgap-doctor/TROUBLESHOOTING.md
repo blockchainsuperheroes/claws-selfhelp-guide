@@ -164,15 +164,29 @@ Find your path with: `which node`
 
 **Symptom:** Doctor can't SSH to nodes.
 
-**Cause:** Public key not in target's authorized_keys.
+**Cause:** Public key not in target's authorized_keys, OR you have multiple keys and authorized the wrong one.
 
 **Fix:**
 ```bash
-# On Doctor, get public key:
+# On Doctor, get THE public key (the one on T5):
 cat /Volumes/YOUR_DRIVE/Doctor/workspace/.ssh/doctor_key.pub
 
 # On target machine, add it:
 echo "ssh-ed25519 AAAA... doctor@airgap" >> ~/.ssh/authorized_keys
+```
+
+**Common mistake:** Authorizing a key when Doctor runs on Machine A, then Doctor moves to Machine B which has a different key. Always use the key FROM T5, not from the host machine.
+
+### "Too many authentication failures"
+
+**Symptom:** SSH fails immediately with auth failure count.
+
+**Cause:** SSH agent is trying multiple keys before the right one.
+
+**Fix:**
+```bash
+# Use IdentitiesOnly to force specific key
+ssh -o IdentitiesOnly=yes -i /path/to/doctor_key user@host
 ```
 
 ### Doctor looks in wrong .ssh directory

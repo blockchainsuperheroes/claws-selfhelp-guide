@@ -152,15 +152,24 @@ chmod 600 "$DOCTOR_PATH/workspace/.ssh/config"
 
 ### Add Doctor's Key to All Nodes
 
+**Critical:** Doctor uses ONE key pair. This key must be added to ALL machines during initial setup — not ad-hoc when you first visit each machine.
+
 On each machine Doctor should access:
 
 ```bash
-# Copy this public key
+# Get Doctor's public key
 cat "/Volumes/YOUR_DRIVE_NAME/Doctor/workspace/.ssh/doctor_key.pub"
 
-# Add to each node's authorized_keys
+# Add to EACH node's authorized_keys (run on each machine)
 echo "ssh-ed25519 AAAA... doctor@airgap" >> ~/.ssh/authorized_keys
 ```
+
+**Why this matters:**
+- Doctor may plug into Machine A and need to SSH to Machine B
+- If Machine B doesn't have the key, Doctor can't help
+- Set up ALL machines upfront, not just the ones you think you'll need
+
+> **Lesson learned:** We initially authorized different keys on different machines. This caused "permission denied" errors when Doctor moved between hosts. One key, everywhere, set up once.
 
 ---
 
