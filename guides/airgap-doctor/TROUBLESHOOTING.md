@@ -4,6 +4,24 @@ Issues we encountered during setup and their fixes.
 
 ---
 
+## First-Time macOS Prompts
+
+When running Doctor on a new machine for the first time, expect these approval dialogs:
+
+| Prompt | What It's For | Action |
+|--------|---------------|--------|
+| "node would like to access files on a removable volume" | Reading/writing to external SSD | Allow |
+| "node would like to access your Documents/Desktop" | If workspace references those paths | Allow (or Deny if not needed) |
+| "node would like to control System Events" | If using AppleScript automations | Allow (or Deny if not needed) |
+| "node would like to access your contacts" | If email CLI accesses contacts | Your choice |
+| Terminal/iTerm "Developer Tools" access | Running CLI commands | Allow |
+
+**Tip:** These only appear once per machine. After approval, Doctor runs without prompts.
+
+**Bulk approve:** System Preferences → Privacy & Security → Full Disk Access → Add `node` or Terminal.
+
+---
+
 ## Permission Issues
 
 ### "Operation not permitted" on drive access
