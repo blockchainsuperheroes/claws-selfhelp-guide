@@ -4,6 +4,29 @@ Emergency cheat sheet. Print this and tape it to your SSD.
 
 ---
 
+## Before You Summon (The Patient Brief)
+
+Like visiting a clinic — come prepared. Post in your coordination channel:
+
+**Symptoms:** What's broken?
+- "Agent 1 is unresponsive"
+- "Can't access email"  
+- "Need to revoke compromised SSH key"
+
+**History:** What have you tried?
+- "Restarted gateway — didn't help"
+- "Peer agents couldn't reach via SSH"
+
+**Current state:** What's running?
+- "Agent 2 and 3 are up"
+- "Agent 1 machine is reachable via ping but gateway down"
+
+**Why this matters:** Doctor reads recent messages on boot. Good notes = faster diagnosis.
+
+> **Note:** We use Discord for coordination. Your setup may use Slack, Telegram, or another channel where agents converge. Adapt accordingly.
+
+---
+
 ## Quick Start (Manual)
 
 ```bash

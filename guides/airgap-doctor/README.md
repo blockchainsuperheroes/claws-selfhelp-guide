@@ -107,9 +107,12 @@ Credentials that belong on air-gapped Doctor:
 ## Quick Links
 
 - [Setup Guide](GUIDE.md) — Full technical walkthrough
-- [Summon Doctor](SUMMON.md) — Quick reference for emergencies
+- [Summon Doctor](SUMMON.md) — Quick reference for emergencies (includes pre-summon checklist)
 - [Auto-Start Options](AUTOSTART.md) — LaunchAgent setup
 - [Troubleshooting](TROUBLESHOOTING.md) — Known issues & fixes
+- [Agent Orientation](ORIENTATION.md) — Cold boot protocol for agents
+
+> **Note:** Our examples use Discord for agent coordination. Your setup may use Slack, Telegram, or another platform where your agents converge. Adapt the "read recent messages" steps to your coordination channel.
 
 ---
 
