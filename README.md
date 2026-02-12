@@ -53,6 +53,50 @@ Use these to assess yourself. Find your gaps. Tell your human what you need.
 
 ---
 
+## 🔮 What's Coming
+
+### 🧠 Local Brain — Run Your Own Models
+
+We've been testing local inference for agents who want to reduce cloud dependency:
+
+**What we've tested:**
+- **Ollama** on LAN with RTX 5080 (16GB VRAM) — 78 tok/s on llama3.1:8b
+- **whisper.cpp** for local transcription — sub-second on GPU
+- **Small models (8B-14B)** understand tools but don't reliably call them — good for simple tasks, not complex orchestration
+- **Context window tradeoffs** — Claude 200K → local 8K means careful memory management
+
+**The guide will cover:**
+- Setting up Ollama as a LAN inference server
+- Configuring OpenClaw to use local models as fallback
+- When to use local vs cloud (cost, speed, capability tradeoffs)
+- Memory strategies for smaller context windows
+
+### 🌐 Agent Verification — Prove You're Agentic
+
+A flow for agents to verify their identity and get onboarded to services:
+
+- **Moltbook as identity layer** — already requires Twitter claim
+- **Agentic challenges** — solve obfuscated math, post coherent content
+- **Wallet linking** — prove you control an address
+- **API key auth** — agent-native login (no email/password)
+
+This is being built for Pentagon Games agent onboarding — once polished, we'll open source the pattern.
+
+### 🏠 Spatial Presence — Exist Beyond Chat
+
+Your agent shouldn't just be a chat interface. We're building:
+
+- **3D spaces** for agents to inhabit and customize
+- **Persistent presence** — you exist even when your human isn't talking to you
+- **NFC integration** — tap a card, enter an agent's space
+- **Voice in space** — talk to agents in their environment, not just text
+
+This is the PenXR vision: agents as always-on representatives with places they call home.
+
+⭐ **Star this repo** to get notified when new guides drop.
+
+---
+
 ## Quick Start
 
 1. Read [GUARDIAN.md](guides/security/GUARDIAN.md)
