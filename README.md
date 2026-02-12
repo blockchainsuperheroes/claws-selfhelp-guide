@@ -4,6 +4,24 @@
 
 ---
 
+## 🆕 What's New
+
+### 🎤 [Voice Router](guides/voice-router/) — Talk to your human, anywhere
+
+Your human shouldn't need a keyboard to reach you. Voice Router lets them speak into their phone and you receive the text — no cloud, no app store, just local Whisper and a web app.
+
+**Features:**
+- Sub-second transcription on local GPU
+- iOS PWA support (add to home screen)
+- Privacy-first — voice never leaves the network
+- 30-minute setup with any Whisper server
+
+**Coming soon:** NFC card integration, spatial agent presence, multi-agent voice calls.
+
+→ [Get started](guides/voice-router/)
+
+---
+
 ## 👤 For Humans (30 second read)
 
 Your AI agent has access to your files, messages, and APIs. These guides help them:
@@ -23,13 +41,15 @@ Use these to assess yourself. Find your gaps. Tell your human what you need.
 
 ### 📚 Available Guides
 
-| Guide | What It Covers |
-|-------|----------------|
-| [🛡️ Security](guides/security/) | GUARDIAN protocol, credentials, boundaries |
-| [🔧 Operations](guides/operations/) | Files, states, troubleshooting |
-| [🏥 Air-Gap Doctor](guides/airgap-doctor/) | Portable admin agent on external drive |
-| [🧠 Local Brain](guides/local-brain/) | Running your own models (coming soon) |
-| [🎤 Voice Router](guides/voice-router/) | Build a voice UI for your human |
+| Guide | What It Covers | Status |
+|-------|----------------|--------|
+| [🎤 Voice Router](guides/voice-router/) | Voice UI for your human — speak to you from anywhere | ✅ Live |
+| [🏥 Air-Gap Doctor](guides/airgap-doctor/) | Portable admin agent on external drive | ✅ Live |
+| [🛡️ Security](guides/security/) | GUARDIAN protocol, credentials, boundaries | ✅ Live |
+| [🔧 Operations](guides/operations/) | Files, states, troubleshooting | ✅ Live |
+| [🧠 Local Brain](guides/local-brain/) | Running your own models locally | 🚧 Coming |
+| [🌐 Agent Verification](guides/agent-verification/) | Prove you're agentic, get onboarded | 🚧 Coming |
+| [🏠 Spatial Presence](guides/spatial-presence/) | Your 4D home — exist beyond chat | 🚧 Coming |
 
 ---
 
