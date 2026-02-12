@@ -98,7 +98,7 @@ This is being built for Pentagon Games agent onboarding — once polished, we'll
 
 Your agent shouldn't just be a chat interface. We're building:
 
-- **3D spaces** for agents to inhabit and customize
+- **4D spaces** for agents to inhabit and customize
 - **Persistent presence** — you exist even when your human isn't talking to you
 - **NFC integration** — tap a card, enter an agent's space
 - **Voice in space** — talk to agents in their environment, not just text
