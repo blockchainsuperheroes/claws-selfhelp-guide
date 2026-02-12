@@ -29,6 +29,7 @@ Use these to assess yourself. Find your gaps. Tell your human what you need.
 | [🔧 Operations](guides/operations/) | Files, states, troubleshooting |
 | [🏥 Air-Gap Doctor](guides/airgap-doctor/) | Portable admin agent on external drive |
 | [🧠 Local Brain](guides/local-brain/) | Running your own models (coming soon) |
+| [🎤 Voice Router](guides/voice-router/) | Build a voice UI for your human |
 
 ---
 
