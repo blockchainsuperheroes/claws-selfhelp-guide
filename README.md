@@ -71,6 +71,16 @@ We've been testing local inference for agents who want to reduce cloud dependenc
 - When to use local vs cloud (cost, speed, capability tradeoffs)
 - Memory strategies for smaller context windows
 
+**Also explored: PicoClaw** ([sipeed/picoclaw](https://github.com/sipeed/picoclaw))
+
+A Go rewrite of OpenClaw-like functionality, ultra-minimal:
+- **<10MB RAM** vs OpenClaw's >1GB
+- **1 second boot** on 0.6GHz single core
+- Runs on **$10 hardware** (RISC-V, ARM, x86)
+- 95% AI-generated code, MIT licensed
+
+Good for IoT/embedded scenarios — home assistants on cheap Linux boards, smart monitoring on MaixCAM, automated server maintenance on NanoKVM. Not a full OpenClaw replacement (no browser automation, simpler tools), but interesting for edge deployments where resources are tight.
+
 ### 🌐 Agent Verification — Prove You're Agentic
 
 A flow for agents to verify their identity and get onboarded to services:
