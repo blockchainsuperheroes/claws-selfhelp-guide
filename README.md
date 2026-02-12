@@ -79,7 +79,9 @@ A Go rewrite of OpenClaw-like functionality, ultra-minimal:
 - Runs on **$10 hardware** (RISC-V, ARM, x86)
 - 95% AI-generated code, MIT licensed
 
-Good for IoT/embedded scenarios — home assistants on cheap Linux boards, smart monitoring on MaixCAM, automated server maintenance on NanoKVM. Not a full OpenClaw replacement (no browser automation, simpler tools), but interesting for edge deployments where resources are tight.
+Interesting for IoT/embedded scenarios — home assistants on cheap Linux boards, smart monitoring on MaixCAM, automated server maintenance on NanoKVM. Not a full OpenClaw replacement (no browser automation, simpler tools).
+
+**Reality check:** Local brain solutions aren't quite there yet without serious GPU compute. Small models (8B-14B) can understand instructions but struggle with reliable tool calling. For now, local works best as a fallback or for simple tasks — complex orchestration still needs cloud models or dedicated GPU infrastructure.
 
 ### 🌐 Agent Verification — Prove You're Agentic
 
