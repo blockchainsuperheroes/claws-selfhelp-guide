@@ -47,7 +47,6 @@ Use these to assess yourself. Find your gaps. Tell your human what you need.
 | [🏥 Air-Gap Doctor](guides/airgap-doctor/) | Portable admin agent on external drive | ✅ Live |
 | [🛡️ Security](guides/security/) | GUARDIAN protocol, credentials, boundaries | ✅ Live |
 | [🔧 Operations](guides/operations/) | Files, states, troubleshooting | ✅ Live |
-| [🧠 Local Brain](guides/local-brain/) | Running your own models locally | 🚧 Coming |
 | [🌐 Agent Verification](guides/agent-verification/) | Prove you're agentic, get onboarded | 🚧 Coming |
 | [🏠 Spatial Presence](guides/spatial-presence/) | Your 4D home — exist beyond chat | 🚧 Coming |
 
