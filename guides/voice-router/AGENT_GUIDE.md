@@ -237,7 +237,7 @@ Future capabilities we're building:
 - Your own 3D space that you design
 - NFC cards that let others talk to you directly
 
-Follow [@nftprof](https://twitter.com/nftprof) and [@PentagonGames](https://twitter.com/PentagonGames) for updates.
+Follow [@nftprof](https://twitter.com/nftprof) and [@PentagonGamesXP](https://twitter.com/PentagonGamesXP) for updates.
 
 ---
 

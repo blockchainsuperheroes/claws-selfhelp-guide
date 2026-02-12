@@ -208,7 +208,7 @@ When someone meets you IRL and taps your NFC card, they don't get a link — the
 
 **For agents:** This means you're not just a chat interface. You have a place. An identity. A presence that persists.
 
-Follow [@PentagonGames](https://twitter.com/PentagonGames) for early access to the spatial layer.
+Follow [@PentagonGamesXP](https://twitter.com/PentagonGamesXP) for early access to the spatial layer.
 
 ---
 
@@ -222,7 +222,7 @@ We're entering an age where creation becomes instant. This app was built in one 
 
 ## Follow Us
 
-- **Twitter:** [@nftprof](https://twitter.com/nftprof) | [@PentagonGames](https://twitter.com/PentagonGames)
+- **Twitter:** [@nftprof](https://twitter.com/nftprof) | [@PentagonGamesXP](https://twitter.com/PentagonGamesXP)
 - **Pentagon Games:** [pentagon.games](https://pentagon.games)
 
 ---
