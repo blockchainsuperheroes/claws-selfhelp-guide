@@ -1,439 +1,483 @@
-# 🔗 NFT Data System — Unified Ownership Backend
+# Pentagon NFT Data API
 
-**One system, all NFT ownership data. Any Pentagon project can look up who owns what.**
+**The authoritative source for NFT ownership across Pentagon Games IP.**
 
-This guide covers Pentagon Games' NFT data infrastructure — how it works, how to integrate with it, and how to add new collections.
-
----
-
-## What Is This?
-
-A three-layer backend that tracks NFT ownership across 14 blockchain networks:
-
-```
-Layer 1: Real-Time Listener     ─→ Pentagon chain Transfer events (~3s)
-Layer 2: Block-Range Scanner    ─→ eth_getLogs every 2-6 min (49 contracts)
-Layer 3: Periodic Verifier      ─→ ownerOf() spot checks (hourly/daily)
-                                         │
-                                    ┌────┴────┐
-                                    │ pg_nft_db │  ← single source of truth
-                                    └────┬────┘
-                    ┌────────────────────┼────────────────────┐
-                    │                    │                    │
-              nft-data-api        marketplace          wallet/mining
-```
-
-**Result:** 372K+ NFT records, always in sync with chain state. Any Pentagon service can query one database or one API for ownership data.
+Every Pentagon service — marketplace, mining, wallet, verifier, admin dashboard — reads ownership from this single backend. One API, one answer, always correct.
 
 ---
 
-## Quick Start — I Just Want to Look Up NFT Owners
+## What This Is
 
-### Option 1: HTTP API (Recommended)
+A unified NFT ownership tracking system with:
 
-The NFT Data API runs on `nft-data.pentagon.games` (or internal `pg-oracle:8009`).
+- **49 active contracts** across 14 blockchain networks
+- **Three-layer sync engine** — real-time listener + block scanner + on-chain verifier
+- **Authenticated API** with per-app rate limits and usage tracking
+- **Sub-second ownership queries** backed by PostgreSQL
 
-**Public (no auth, 10 req/min):**
-```bash
-# Get NFTs owned by a wallet
-curl "https://nft-data.pentagon.games/api/v1/nft/owner/0x37224cFD71347Da6f097c94B8649f9C552f803c9"
-
-# Get specific NFT details
-curl "https://nft-data.pentagon.games/api/v1/nft/contract/0x8F83c6122Dd4d275B53a7846B3D3dB29Cca1e698/1"
-
-# Get collection info
-curl "https://nft-data.pentagon.games/api/v1/nft/collection/EtherFantasy"
-```
-
-**Authenticated (100 req/min with app key):**
-```bash
-curl -H "X-PG-App-Key: pk_live_your_key_here" \
-  "https://nft-data.pentagon.games/api/v1/nft/owner/0x..."
-```
-
-Get an app key at `cli.pentagon.games` (Admin Panel → App Keys). The same key works for all Pentagon APIs (login, nft-data, etc).
-
-### Option 2: Direct Database (Internal Services Only)
-
-For backend services on the same VPC:
-
-```
-Host: 172.31.46.190 (AWS VPC internal)
-Port: 5432
-Database: pg_nft_db
-User: cron_cg_nft  (read-only recommended for consumers)
-```
-
-Key tables:
-- `nfts` — NFT records with `owner`, `token_id`, `name`, `image`, `hashrate`
-- `nft_contract` — Contract registry (49 active across 14 chains)
-- `nft_owner` — Additional owner tracking
-- `nft_transfer_history` — Transfer event log
-
-```sql
--- Who owns token #42 of EtherFantasy?
-SELECT n.owner, n.name, n.image
-FROM nfts n
-JOIN nft_contract nc ON n.asset_contract_id = nc.id
-WHERE nc.name = 'EtherFantasy Genesis'
-  AND n.token_id = '42';
-
--- All NFTs owned by a wallet
-SELECT n.token_id, n.name, n.image, nc.name AS collection
-FROM nfts n
-JOIN nft_contract nc ON n.asset_contract_id = nc.id
-WHERE LOWER(n.owner) = LOWER('0x37224cFD71347Da6f097c94B8649f9C552f803c9');
-```
+If you need to know who owns an NFT across Pentagon's ecosystem — this is where you ask.
 
 ---
 
-## Supported Chains & Contracts
+## Quick Start
 
-| Chain | Chain ID | Contracts | Sync Method |
-|-------|----------|-----------|-------------|
-| Ethereum | 1 | 25 | Scanner (every 2-30 min depending on contract) |
-| Pentagon | 3344 | 13 | **Real-time listener + scanner + verifier** |
-| BSC | 56 | 2 | Scanner |
-| Polygon | 137 | 1 | Scanner |
-| Core | 1116 | 2 | Scanner |
-| Arbitrum | 42161 | 1 | Scanner |
-| SKALE Nebula | 1482601649 | 2 | Scanner |
-| Monad | 143 | 1 | Scanner |
-| Oasys | 248 | 1 | Scanner |
-| TRON | 728126428 | 1 | JSON-RPC scanner |
+### 1. Get an App Key
 
-Pentagon chain gets all three layers — real-time detection within 3 seconds, scanner backup every 2-6 minutes, and verifier checks hourly.
+App keys are managed through the Pentagon Admin Panel. Each key tracks:
+- Which app is making requests
+- Usage count and rate limits  
+- Allowed origins (for web apps) or IPs (for servers)
 
----
+Request a key from the Pentagon team. Keys look like: `pk_live_xxxxx` (production) or `pk_test_xxxxx` (development).
 
-## Adding a New Collection
-
-### Step 1: Register the Contract
-
-Insert into `nft_contract` table in `pg_nft_db`:
-
-```sql
-INSERT INTO nft_contract (
-    name, address, "chainId", contract_type, sync_type,
-    metadata_url, is_active, logo, display_order
-) VALUES (
-    'My New Collection',           -- display name
-    '0xYOUR_CONTRACT_ADDRESS',     -- contract address (checksummed)
-    3344,                          -- chain ID
-    'ERC721',                      -- ERC721, ERC1155, TRC721, or TON
-    'custom',                      -- sync_type: api, api-json, custom, pegnames, rugpull, gemry, etherfantasy
-    'https://your-metadata-api/',  -- optional: metadata URL (token ID appended)
-    true,                          -- is_active
-    'https://your-logo-url.png',   -- collection logo
-    100                            -- display order
-);
-```
-
-**Sync types:**
-- `api` — Fetches metadata from OpenSea API
-- `api-json` — Fetches metadata from `{metadata_url}{tokenId}.json`
-- `custom` — Uses built-in custom data handlers (for PG IP like BCSH, PentaPets, etc.)
-- `etherfantasy`, `gemry`, `rugpull`, `pegnames` — Game-specific sync handlers
-
-### Step 2: The Scanner Picks It Up
-
-The scheduler auto-detects new active contracts. Within 5 minutes:
-1. Creates a sync job entry in `nft_owner_sync_jobs`
-2. Starts scanning from block 0 (or specified start block)
-3. Processes Transfer events in batches of up to 999 blocks
-4. Populates `nfts` table with owner, metadata, images
-
-### Step 3: (Optional) Add Real-Time Listener
-
-If it's a Pentagon chain contract, the listener will automatically pick it up on next restart. For other chains, listener support can be extended in `master/listener.py`.
-
-### Step 4: (Optional) Add Custom Metadata Handler
-
-If the collection needs special metadata handling (e.g., custom image URLs, game-specific traits):
-
-1. Add a handler in `master/custom_nft_data.py`
-2. Return a dict with: `name`, `image`, `description`, `hashrate`, `traits`, `tokenload`, `catch`
-3. Set `sync_type = 'custom'` in the contract registration
-
----
-
-## API Reference
-
-### Endpoints
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/v1/nft/owner/<address>` | GET | Optional | Get all NFTs owned by wallet |
-| `/api/v1/nft/contract/<address>/<tokenId>` | GET | Optional | Get specific NFT details |
-| `/api/v1/nft/collection/<name>` | GET | Optional | Collection metadata + stats |
-| `/api/v1/nft/collections` | GET | Optional | List all collections |
-| `/api/v1/nft/search?q=<query>` | GET | Optional | Search NFTs by name |
-| `/api/v1/nft/hashrate/<address>` | GET | Optional | Mining hashrate for wallet |
-
-### Authentication
-
-**No key (public):** 10 requests per minute per IP
-
-**With `X-PG-App-Key` header:** Per-app rate limit (default 100/min, configurable per key)
+### 2. Make Your First Query
 
 ```bash
-# Example: authenticated request
-curl -H "X-PG-App-Key: pk_live_36f496a8795c9d29b6ad037fe5905084" \
-  "https://nft-data.pentagon.games/api/v1/nft/owner/0x..."
+# Look up NFTs owned by a wallet address
+curl -H "X-PG-App-Key: pk_live_YOUR_KEY" \
+  "https://nft-data.pentagon.games/api/v1/nft/owner/0x37224cFD71347Da6f097c94B8649f9C552f803c9"
 ```
 
-**Getting a key:**
-1. Go to `cli.pentagon.games`
-2. Admin Panel → App Keys
-3. Create new key with `nft-data:read` scope
-4. Same key works for login API, nft-data API, and future Pentagon services
-
-### Response Format
-
+Response:
 ```json
 {
-  "status": "ok",
-  "data": {
-    "nfts": [
-      {
-        "token_id": "42",
-        "name": "EtherFantasy Hero #42",
-        "collection": "EtherFantasy Genesis",
-        "chain_id": 3344,
-        "owner": "0x37224cFD71347Da6f097c94B8649f9C552f803c9",
-        "image": "https://api.etherfantasy.com/images/...",
-        "hashrate": 75,
-        "traits": [
-          {"trait_type": "Class", "value": "Warrior"},
-          {"trait_type": "Level", "value": "5"}
-        ]
-      }
-    ],
-    "total": 1
-  }
+  "total": 17,
+  "results": [
+    {
+      "token_id": "4201",
+      "name": "BCSH #4201",
+      "owner": "0x37224cfd71347da6f097c94b8649f9c552f803c9",
+      "image": "https://assets.pentagon.games/bcsh/4201.png",
+      "contract": "0xcDAD57bFc48E8373280C6dc3039C5169353B6879",
+      "chain_id": 3344,
+      "collection": "BCSH OASYS"
+    }
+  ]
 }
 ```
 
 ---
 
-## Internal Health Dashboard
+## API Reference
 
-For operators and internal tools, the master service exposes health endpoints on port 9011 (VPC only):
+### Base URL
 
-```bash
-# Overall system stats
-curl http://localhost:9011/api/internal/sync/stats
+```
+https://nft-data.pentagon.games
+```
 
-# Per-contract sync health (block lag, layer status)
-curl http://localhost:9011/api/internal/sync/health
+### Authentication
 
-# Gaps (transfers caught by scanner but missed by listener)
-curl http://localhost:9011/api/internal/sync/gaps
+Pass your app key via the `X-PG-App-Key` header:
 
-# Ownership verification mismatches
-curl http://localhost:9011/api/internal/sync/mismatches
+```
+X-PG-App-Key: pk_live_your_key_here
+```
 
-# Trigger manual verification for a contract
-curl -X POST http://localhost:9011/api/internal/sync/verify/42
+Public endpoints work without a key but are rate-limited to **10 requests/minute**.  
+Authenticated requests get **up to 100 requests/minute** (configurable per key).
 
-# Force resync from a specific block
-curl -X POST "http://localhost:9011/api/internal/sync/resync/42?from_block=1000000"
+### Endpoints
+
+#### Health Check
+
+```
+GET /
+```
+
+Returns service status. No auth required.
+
+```json
+{
+  "service": "nft-data-api",
+  "status": "ok",
+  "auth": "X-PG-App-Key (shared with pentagon-login-backend)",
+  "timestamp": "2026-05-10T23:06:21.435905+00:00"
+}
 ```
 
 ---
 
-## Architecture Details
+#### Look Up NFTs by Owner
 
-### How the Three Layers Work Together
+```
+GET /api/v1/nft/owner/<wallet_address>
+```
 
-**Layer 1 — Listener (Real-Time):**
-- Polls Pentagon RPC every 3 seconds for new Transfer events
-- Updates `nfts.owner` immediately
-- Logs to `nft_transfer_log` with `source='listener'`
-- Saves checkpoint in `listener_checkpoint`
-- Fast but fragile — can miss events during RPC downtime
+Returns all NFTs owned by a wallet address across all tracked chains and collections.
 
-**Layer 2 — Scanner (Block-Range):**
-- Runs on APScheduler intervals (1 min to 1.5 hours depending on contract activity)
-- Fetches `eth_getLogs` for Transfer topic in configurable block ranges
-- Updates `nfts.owner` and `nft_transfer_history`
-- Logs to `nft_transfer_log` with `source='scanner'`
-- Reliable — resumes from last processed block, never misses blocks
+**Parameters:**
 
-**Layer 3 — Verifier:**
-- Hourly: samples 10% of NFTs, calls `ownerOf()` on-chain
-- Daily (3 AM UTC): full sweep of all Pentagon chain NFTs
-- If DB owner ≠ chain owner → auto-corrects + logs mismatch
-- Logs to `ownership_verification` and `nft_transfer_log` with `source='verifier'`
-- Ground truth — the chain is always right
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `wallet_address` | path | Yes | Ethereum-style wallet address (0x...) |
+| `chain_id` | query | No | Filter by chain ID (e.g., `3344` for Pentagon) |
+| `contract` | query | No | Filter by contract address |
+| `collection` | query | No | Filter by collection name |
+| `page` | query | No | Page number (default: 1) |
+| `limit` | query | No | Results per page (default: 50, max: 200) |
 
-**Triangulation rule:** If scanner and listener disagree, scanner wins. If anything disagrees with chain (`ownerOf()`), chain wins.
+**Response:**
 
-### Database Schema (New Tables)
+```json
+{
+  "owner": "0x37224cFD71347Da6f097c94B8649f9C552f803c9",
+  "total": 17,
+  "page": 1,
+  "limit": 50,
+  "nfts": [
+    {
+      "tokenId": "4201",
+      "name": "BCSH #4201",
+      "owner": "0x37224cfd71347da6f097c94b8649f9c552f803c9",
+      "image": "https://images.pfpvault.com/3344/0xcdad.../4201.webp",
+      "contractAddress": "0xcDAD57bFc48E8373280C6dc3039C5169353B6879",
+      "chain": 3344,
+      "collection": "BCSH OASYS",
+      "updatedAt": "2026-05-11T04:15:39.874904+00:00"
+    }
+  ]
+}
+```
 
-```sql
--- Real-time listener tracking
-CREATE TABLE listener_checkpoint (
-    id SERIAL PRIMARY KEY,
-    contract_id INTEGER REFERENCES nft_contract(id),
-    chain_id INTEGER NOT NULL,
-    last_block BIGINT NOT NULL DEFAULT 0,
-    last_event_at TIMESTAMP WITH TIME ZONE,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(contract_id)
-);
-
--- Unified transfer log (all layers)
-CREATE TABLE nft_transfer_log (
-    id BIGSERIAL PRIMARY KEY,
-    contract_id INTEGER REFERENCES nft_contract(id),
-    token_id VARCHAR(100) NOT NULL,
-    from_address VARCHAR(100) NOT NULL,
-    to_address VARCHAR(100) NOT NULL,
-    tx_hash VARCHAR(100),
-    block_number BIGINT,
-    block_timestamp TIMESTAMP WITH TIME ZONE,
-    source VARCHAR(20) NOT NULL,  -- 'listener', 'scanner', 'verifier'
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Verifier spot-check results
-CREATE TABLE ownership_verification (
-    id BIGSERIAL PRIMARY KEY,
-    contract_id INTEGER REFERENCES nft_contract(id),
-    token_id VARCHAR(100) NOT NULL,
-    db_owner VARCHAR(100),
-    chain_owner VARCHAR(100),
-    is_match BOOLEAN NOT NULL,
-    verified_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Per-contract health dashboard
-CREATE TABLE sync_health (
-    id SERIAL PRIMARY KEY,
-    contract_id INTEGER REFERENCES nft_contract(id) UNIQUE,
-    listener_status VARCHAR(20) DEFAULT 'stopped',
-    listener_last_event TIMESTAMP WITH TIME ZONE,
-    scanner_last_block BIGINT DEFAULT 0,
-    scanner_last_ran TIMESTAMP WITH TIME ZONE,
-    verifier_last_ran TIMESTAMP WITH TIME ZONE,
-    verifier_mismatches INTEGER DEFAULT 0,
-    chain_head_block BIGINT DEFAULT 0,
-    block_lag INTEGER DEFAULT 0,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+> **Image Resolution:** The `image` field returns the best available source — prefers per-token CDN (`images.pfpvault.com`) over on-chain metadata (`arweave.net`). This ensures upgraded NFTs (e.g. Dark Setsuko, Obelith variants) display their correct artwork.
 ```
 
 ---
 
-## Infrastructure
+#### Look Up NFT by Token ID
 
-| Component | Server | Port | Notes |
-|-----------|--------|------|-------|
-| nft-ownership-master | pg-crons (18.143.147.51) | 9011 | All 3 layers + health API |
-| nft-sync-cron (legacy) | pg-crons (18.143.147.51) | 8009 | Original scanner (still running, will be deprecated) |
-| nft-data-api | pg-oracle (13.212.88.57) | 8009 | Public REST API |
-| pg_nft_db | pg-db AWS (172.31.46.190) | 5432 | PostgreSQL database |
-
-### Deployment
-
-The master service runs under supervisor on pg-crons:
-
-```bash
-# Check status
-sudo supervisorctl status nft-ownership-master
-
-# Restart
-sudo supervisorctl restart nft-ownership-master
-
-# View logs
-tail -f /var/log/nft-ownership-master/error.log
-
-# Pull updates
-cd /var/www/nft-sync/nft-ownership-master
-git pull origin main
-sudo supervisorctl restart nft-ownership-master
 ```
+GET /api/v1/nft/<contract_address>/<token_id>
+```
+
+Returns details for a specific NFT including current owner and metadata.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `contract_address` | path | Yes | Contract address |
+| `token_id` | path | Yes | Token ID |
+
+**Response:**
+
+```json
+{
+  "contract": "0xcDAD57bFc48E8373280C6dc3039C5169353B6879",
+  "tokenId": "5555000000553",
+  "collection": "BCSH OASYS",
+  "chain": 3344,
+  "owner": "0x6e28399aa9dd598caa49df9fa46d0ae87c0e7d57",
+  "metadata": {
+    "name": "Dark Setsuko",
+    "description": "After shattering her katana...",
+    "image": "https://images.pfpvault.com/3344/0xcdad.../5555000000553.webp",
+    "imageSource": "cached",
+    "attributes": [
+      {"trait_type": "Background", "value": "Blue"}
+    ]
+  },
+  "source": {
+    "tokenUri": "https://api.bcsh.xyz/metadata/5555000000553",
+    "lastSync": "2026-05-08T18:19:02+00:00"
+  }
+}
+```
+
+> **`imageSource` field:** Indicates where the image was resolved from:
+> - `"cached"` — per-token CDN image from pfpvault (most accurate for upgraded NFTs)
+> - `"onchain"` — image URL from on-chain metadata (tokenURI)
+> - `"original"` — fallback original image URL
+```
+
+---
+
+#### List Tracked Collections
+
+```
+GET /api/v1/collections
+```
+
+Returns all actively tracked NFT collections with contract addresses and chain info.
+
+**Response:**
+
+```json
+{
+  "total": 49,
+  "collections": [
+    {
+      "name": "BCSH OASYS",
+      "contract": "0xcDAD57bFc48E8373280C6dc3039C5169353B6879",
+      "chain_id": 3344,
+      "chain_name": "Pentagon",
+      "type": "ERC721",
+      "sync_status": "healthy",
+      "total_supply": 10000,
+      "last_synced": "2026-05-10T23:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+#### Collection Stats
+
+```
+GET /api/v1/collection/<contract_address>/stats
+```
+
+Returns ownership statistics for a collection.
+
+**Response:**
+
+```json
+{
+  "contract": "0xcDAD57bFc48E8373280C6dc3039C5169353B6879",
+  "name": "BCSH OASYS",
+  "total_supply": 10000,
+  "unique_owners": 3421,
+  "top_holders": [
+    {"address": "0x...", "count": 150},
+    {"address": "0x...", "count": 87}
+  ]
+}
+```
+
+---
+
+#### Transfer History
+
+```
+GET /api/v1/nft/<contract_address>/<token_id>/transfers
+```
+
+Returns transfer history for a specific NFT.
+
+**Response:**
+
+```json
+{
+  "transfers": [
+    {
+      "from": "0x0000000000000000000000000000000000000000",
+      "to": "0x37224cfd71347da6f097c94b8649f9c552f803c9",
+      "tx_hash": "0xabc123...",
+      "block_number": 1234567,
+      "timestamp": "2026-01-15T12:30:00Z",
+      "source": "scanner"
+    }
+  ]
+}
+```
+
+---
+
+### Error Responses
+
+```json
+// 401 — Invalid or missing app key
+{"error": "Invalid or inactive app key"}
+
+// 404 — NFT or collection not found
+{"error": "NFT not found"}
+
+// 429 — Rate limit exceeded
+{"error": "Rate limit exceeded", "retry_after": 60}
+```
+
+---
+
+## Supported Chains
+
+| Chain | Chain ID | Native RPC | Status |
+|-------|----------|------------|--------|
+| Pentagon | 3344 | `rpc.pentagon.games` | ✅ Real-time + Scanner |
+| Ethereum | 1 | Infura | ✅ Scanner |
+| BSC | 56 | Ankr | ✅ Scanner |
+| Polygon | 137 | Infura | ✅ Scanner |
+| Arbitrum | 42161 | Infura | ✅ Scanner |
+| Core | 1116 | CoreDAO | ✅ Scanner |
+| OASYS | 248 | OASYS | ✅ Scanner |
+| Monad | 143 | Infura | ✅ Scanner |
+| Avalanche | 43114 | Public | ✅ Scanner |
+| SKALE Nebula | 1482601649 | SKALE | ✅ Scanner |
+
+Pentagon chain contracts get real-time WebSocket tracking (sub-second updates). All other chains use block-range scanning (2-6 minute intervals).
+
+---
+
+## Tracked Collections
+
+### Pentagon Chain (3344)
+
+| Collection | Contract | Type |
+|------------|----------|------|
+| BCSH OASYS | `0xcDAD57bFc48E8373280C6dc3039C5169353B6879` | ERC721 |
+| BCSH Vaelion | `0x35A31E23FB1AAD207Ad4075C52e981dC9165059b` | ERC721 |
+| BCSH No_5 | `0x0A5FE002F2eD146415A1f4865DE1c180a39D599E` | ERC721 |
+| BCSH Tamago | `0x2444D26cC268848f2B1bd837456537510F1aac81` | ERC721 |
+| BCSH Baiyi | `0xF8C869a5575f44fB9b68F670e6B158B30fB8Ccf5` | ERC721 |
+| GCN NFT | `0x42D97d553Ee71deF76a131e48Fc42BCf8da3B141` | ERC721 |
+| GCN Shards | `0xfd8276d1745761D3C5C55269fe4466FCD31D9dD3` | ERC1155 |
+| Gunnies PFP | `0x7a8a3236e3783E7cC33b97729378e31Cf14d3Ebc` | ERC721 |
+| PentaPets | `0xe6BdE156369D209C4d420E966541eE17093705B5` | ERC721 |
+| RugPull Art | `0xd77f88ef51b2589d132d6eb61068079f61dfe4a3` | ERC721 |
+| Gemry | `0xc05b96b89Ce46c306223E3f4c413891d17E1De70` | ERC721 |
+| PEGNAMES | `0xf97EB9f8293D1FD5587a809Eb74518c300738d07` | ERC721 |
+| EtherFantasy | `0x8F83c6122Dd4d275B53a7846B3D3dB29Cca1e698` | ERC721 |
+
+### Ethereum (1)
+
+| Collection | Contract | Type |
+|------------|----------|------|
+| BCSH ETH | `0x53b719422f427Fe158f480Bfc3Cf32201e416F89` | ERC721 |
+| Moonbirds | See contract registry | ERC721 |
+| Azuki | See contract registry | ERC721 |
+| Doodles | See contract registry | ERC721 |
+| CLONE X | See contract registry | ERC721 |
+| + 11 more | — | — |
+
+*Full list available via `GET /api/v1/collections`*
+
+---
+
+## Sync Engine Architecture
+
+The NFT Data API is backed by a three-layer sync engine that guarantees ownership accuracy:
+
+### Layer 1: Real-Time Listener
+- **How:** WebSocket subscriptions to Transfer events
+- **Speed:** ~2 seconds from on-chain transfer to DB update
+- **Scope:** Pentagon chain contracts (we own the RPC — zero rate limits)
+- **Recovery:** Saves block checkpoints; on restart, catches up any missed blocks via Layer 2
+
+### Layer 2: Block-Range Scanner
+- **How:** Periodic `eth_getLogs()` calls scanning from last saved block to chain head
+- **Speed:** 2-6 minute intervals per contract
+- **Scope:** All 14 chains, all 49 contracts
+- **Reliability:** Never misses blocks — picks up from saved checkpoint even after downtime
+
+### Layer 3: Periodic Verifier
+- **How:** On-chain `ownerOf()` spot checks comparing DB state to chain truth
+- **Speed:** Hourly sampling (10%), daily full sweep
+- **Purpose:** Catches edge cases both layers might miss (contract upgrades, admin transfers, bugs)
+
+### Triangulation Rule
+
+When Layer 1 and Layer 2 disagree → **Scanner wins** (more reliable).  
+If disagreement persists → Layer 3 calls `ownerOf()`.  
+**Chain is always ground truth.**
+
+---
+
+## For Pentagon Internal Services
+
+### Marketplace
+
+Instead of running your own `TransferListenerService`, read ownership from:
+```
+GET /api/v1/nft/owner/<address>?chain_id=3344
+```
+Keep your local DB for listings, bids, cart, and stats. Let the master handle ownership.
+
+### Mining / Wallet / Verifier
+
+Same pattern — query the API for ownership, don't maintain your own sync.
+
+### Internal Health Dashboard
+
+```
+GET /api/internal/sync/health    — Per-contract sync status
+GET /api/internal/sync/gaps      — Listener/scanner gap detections
+GET /api/internal/sync/mismatches — Ownership verification failures
+```
+
+Requires a `server`-type app key.
 
 ---
 
 ## For External Projects
 
-If you're building on Pentagon Chain and want to integrate NFT ownership data:
+### Getting Listed
 
-1. **Get an app key** at `cli.pentagon.games`
-2. **Use the API** at `nft-data.pentagon.games` — start with `/api/v1/nft/owner/<wallet>`
-3. **Request your contract** be added — reach out via Pentagon Games Discord
-4. **Rate limits:** 100 req/min with app key, sufficient for most integrations
+To have your NFT collection tracked by Pentagon:
 
-### Integration Patterns
+1. **Contact the Pentagon team** with your contract address and chain
+2. We register your contract in our system
+3. Sync begins automatically — all three layers
+4. You receive an app key for API access
 
-**Game Backend — Check if player owns an NFT:**
-```python
-import requests
+### What You Get
 
-def player_owns_nft(wallet, collection_contract, token_id):
-    resp = requests.get(
-        f"https://nft-data.pentagon.games/api/v1/nft/contract/{collection_contract}/{token_id}",
-        headers={"X-PG-App-Key": "pk_live_your_key"}
-    )
-    data = resp.json()
-    return data["data"]["owner"].lower() == wallet.lower()
-```
+- ✅ **Bulletproof ownership tracking** — triple-verified, never stale
+- ✅ **Fast API access** — sub-second queries
+- ✅ **Cross-chain visibility** — tracked wherever your NFTs exist
+- ✅ **Transfer history** — full log from deployment to present
+- ✅ **Dashboard visibility** — see sync health for your collection
+- ✅ **Pentagon ecosystem integration** — marketplace, mining, wallet, verifier
 
-**Wallet App — Show user's NFTs:**
-```javascript
-const response = await fetch(
-  `https://nft-data.pentagon.games/api/v1/nft/owner/${walletAddress}`,
-  { headers: { 'X-PG-App-Key': 'pk_live_your_key' } }
-);
-const { data } = await response.json();
-// data.nfts = [{token_id, name, image, collection, chain_id, ...}]
-```
+### Requirements
 
-**Discord Bot — Verify NFT ownership:**
-```python
-# Check if Discord user's linked wallet holds a specific collection
-nfts = get_nfts_for_wallet(user_wallet)
-has_collection = any(n["collection"] == "Gunnies PFP" for n in nfts)
-if has_collection:
-    await member.add_roles(holder_role)
-```
+- ERC721 or ERC1155 contract
+- Standard `Transfer` event emissions
+- Contract deployed on a supported chain (see Supported Chains above)
 
 ---
 
-## Repos
+## Rate Limits
 
-| Repo | What | Link |
-|------|------|------|
-| infra-nft-ownership-master | Three-layer sync engine (this) | `blockchainsuperheroes/infra-nft-ownership-master` |
-| infra-nft-sync | Original scanner cron (legacy) | `blockchainsuperheroes/infra-nft-sync` |
-| cg-nft-api | Old Laravel NFT API (deprecated) | `blockchainsuperheroes/cg-nft-api` |
+| Auth Level | Limit | Scope |
+|------------|-------|-------|
+| No key (public) | 10/min | Per IP |
+| App key (default) | 100/min | Per key |
+| App key (custom) | Up to 500/min | Per key |
 
----
-
-## Troubleshooting
-
-**Scanner shows 0 events for a contract?**
-- Check `nft_owner_sync_jobs` — is the block number recent?
-- The contract may just have no recent transfers
-- Try `/api/internal/sync/resync/<id>?from_block=0` to resync from genesis
-
-**Listener not detecting transfers?**
-- Check `/api/internal/sync/health` — is listener_status "running"?
-- Pentagon RPC might be down — check `curl https://rpc.pentagon.games`
-- Restart: `sudo supervisorctl restart nft-ownership-master`
-
-**Ownership mismatch?**
-- Check `/api/internal/sync/mismatches` for recent corrections
-- Trigger manual verify: `POST /api/internal/sync/verify/<contract_id>?full=true`
-- The verifier auto-corrects — chain state always wins
-
-**OOM on pg-crons?**
-- The server has 3.7GB RAM with multiple services
-- Scanner jobs are staggered (3s apart) to avoid memory spikes
-- If OOM persists, increase stagger interval in `master/scheduler.py`
+Rate limits are configurable per app key via the admin panel.
 
 ---
 
-*Built by Cerise02 💜 — part of the Pentagon Games AI agent team.*
+## Image Resolution
+
+The API uses a **three-tier image fallback** to ensure NFTs always display the best available artwork:
+
+1. **`cached_image_url`** (pfpvault CDN) — Per-token rendered images, includes upgraded variants. Preferred source.
+2. **`image`** (on-chain metadata) — Image URL from the token's on-chain metadata (tokenURI → JSON → image). May be generic for collections with upgradeable metadata.
+3. **`original_image_url`** — Original image captured at first sync.
+
+The `image` field in API responses always returns the best available (`cached > onchain > original`).
+
+For single-token lookups, the `imageSource` field tells you which tier was used.
+
+### Why This Matters
+
+Some collections (like BCSH OASYS / Setsuko) have upgradeable NFTs where the on-chain metadata returns a generic base image for all variants. The `cached_image_url` from pfpvault stores the correct per-token artwork including upgrades (Dark Setsuko, Obelith Setsuko, etc.).
+
+### Metadata Refresh (Coming Soon)
+
+A queued metadata refresh system is planned:
+- **User-facing:** `POST /api/v1/nft/refresh/<contract>/<tokenId>` — rate-limited to 1 refresh per token per user per 10 minutes, queued via RabbitMQ
+- **Admin:** Full collection refresh from the admin panel with progress tracking
+- This handles the OpenSea-style "refresh metadata" workflow for upgradeable NFT collections
+
+---
+
+## Status & Monitoring
+
+Service health: `GET /` — returns `200 OK` when operational.
+
+Sync health per collection is available via the internal dashboard endpoints (requires server-type key).
+
+---
+
+## Support
+
+- **Pentagon Games Discord:** [discord.gg/pentagongamesxp](https://discord.gg/pentagongamesxp)
+- **Internal:** #nft-data-api channel
+- **API Issues:** Contact Pentagon dev team
+
+---
+
+*Built and maintained by Pentagon Games infrastructure team.*
