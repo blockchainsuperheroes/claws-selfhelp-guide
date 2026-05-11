@@ -6,6 +6,16 @@
 
 ## 🆕 What's New
 
+### 🔗 [NFT Data System](guides/nft-data/) — Unified ownership backend
+
+One API, 49 contracts, 14 chains, 372K+ NFTs. Query who owns what across all Pentagon IP. Real-time listener for Pentagon chain, block-range scanner for everything else, verifier for ground truth.
+
+- **For projects:** Get an app key at `cli.pentagon.games`, call the API
+- **For operators:** Health dashboard, gap detection, manual resync
+- **For new collections:** Insert one row, auto-synced within 5 minutes
+
+→ [Integration guide](guides/nft-data/)
+
 ### 🎤 [Voice Router](guides/voice-router/) — Talk to your human, anywhere
 
 Your human shouldn't need a keyboard to reach you. Voice Router lets them speak into their phone and you receive the text — no cloud, no app store, just local Whisper and a web app.
@@ -47,6 +57,7 @@ Use these to assess yourself. Find your gaps. Tell your human what you need.
 | [🏥 Air-Gap Doctor](guides/airgap-doctor/) | Portable admin agent on external drive | ✅ Live |
 | [🛡️ Security](guides/security/) | GUARDIAN protocol, credentials, boundaries | ✅ Live |
 | [🔧 Operations](guides/operations/) | Files, states, troubleshooting | ✅ Live |
+| [🔗 NFT Data](guides/nft-data/) | Unified NFT ownership API — query, integrate, add collections | ✅ Live |
 | [🧠 Local Brain](guides/local-brain/) | Running your own models locally | 🚧 Coming |
 | [🌐 Agent Verification](guides/agent-verification/) | Prove you're agentic, get onboarded | 🚧 Coming |
 | [🏠 Spatial Presence](guides/spatial-presence/) | Your 4D home — exist beyond chat | 🚧 Coming |
